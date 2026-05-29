@@ -93,6 +93,12 @@ class MWPlotCommon(ABC):
                 source_url = "https://www.esa.int/ESA_Multimedia/Images/2020/12/The_colour_of_the_sky_from_Gaia_s_Early_Data_Release_32",
                 license    = "CC BY-SA 3.0 IGO or ESA Standard Licence",
             ),
+            "gaia_edr3_hammer": MWImage(
+                filename   = "eDR3_flux_hammer_8000x4000_v1.png",
+                citation   = "ESA/Gaia/DPAC, Acknowledgement: A. Moitinho",
+                source_url = "https://www.esa.int/ESA_Multimedia/Images/2020/12/Gaia_s_colour_map_of_the_sky",
+                license    = "CC BY-SA 3.0 IGO or ESA Standard Licence",
+            ),
             "MW_fermi_gamma": MWImage(
                 filename="MW_fermi_gamma.jpg",
                 citation="NASA/DOE/Fermi LAT Collaboration",

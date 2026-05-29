@@ -522,14 +522,13 @@ class MWSkyMap(MWSkyMapBase):
                 Lon, Lat = np.meshgrid(lon, lat)
                 if self.grayscale:
                     mappable = ax.pcolormesh(
-                        Lon,
-                        Lat,
-                        np.dot(self.bg_img, [0.2989, 0.5870, 0.1140]),
-                        zorder=2,
-                        cmap="gray",
-                        alpha=self.imalpha,
-                        rasterized=True,
-                    )
+                    Lon,
+                    Lat,
+                    self.bg_img,
+                    zorder=2,
+                    alpha=self.imalpha,
+                    rasterized=True,   
+                )
                 else:
                     mappable = ax.pcolormesh(
                         Lon,
@@ -739,6 +738,33 @@ class MWSkyMap(MWSkyMapBase):
             if self.tight_layout is True:
                 self.fig.tight_layout()
             self.fig.show(*args, **kwargs)
+
+    def show_hammer(self, background='gaia_edr3_hammer', figsize=None):
+        img_obj = self._MW_IMAGES[background]
+        arr = np.array(img_obj.pillow_img)
+        
+        if figsize is None:
+            figsize = self.figsize
+        
+        fig, ax = plt.subplots(figsize=figsize)
+        ax.imshow(arr, interpolation='bilinear')
+        ax.axis('off')
+        fig.patch.set_facecolor('black')
+        fig.tight_layout(pad=0)
+        
+        self.fig = fig
+        self.ax = ax
+        self.reference_str = img_obj.citation
+
+    def galactic_to_hammer_pixel(self, l_deg, b_deg, img_width=8000, img_height=4000):
+        l_rad = np.deg2rad(-apycoords.Angle(l_deg * u.deg).wrap_at(180 * u.deg).deg)
+        b_rad = np.deg2rad(b_deg)
+        z  = np.sqrt(1 + np.cos(b_rad) * np.cos(l_rad / 2))
+        x_hammer = 2 * np.sqrt(2) * np.cos(b_rad) * np.sin(l_rad / 2) / z
+        y_hammer = np.sqrt(2) * np.sin(b_rad) / z
+        px = (x_hammer + 2 * np.sqrt(2)) / (4 * np.sqrt(2)) * img_width
+        py = (np.sqrt(2) - y_hammer) / (2 * np.sqrt(2)) * img_height
+        return px, py
 
     def savefig(self, file="MWSkyMap.png", **kwargs):
         if self.tight_layout is True:
