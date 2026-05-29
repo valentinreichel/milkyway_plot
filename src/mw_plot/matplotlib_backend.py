@@ -43,13 +43,23 @@ class MWFaceOn(MWPlotBase):
         grayscale: bool = False,
         annotation: bool = False,
         angle: int = 90,
-        r0: u.Quantity = 8.125 * u.kpc,
+        r0: u.Quantity = 8.275 * u.kpc, #https://www.aanda.org/articles/aa/full_html/2021/03/aa40208-20/aa40208-20.html#S12, equation 38
         coord: str = "galactic",
         center: tuple = (0.0, 0.0),
         radius: u.Quantity = 20.0 * u.kpc,
         unit: u.Unit = u.kpc,
         figsize: tuple = (5, 5),
+        map: str = "gaia",
+        show_sun: bool = True,
+        sun_position: str = "bottom", 
     ):
+        if sun_position == "right":
+            angle = 0
+        elif sun_position == "bottom":
+            angle = 90
+        else:
+            raise ValueError("sun_position must be 'bottom' or 'right'") 
+        
         super().__init__(
             grayscale=grayscale,
             annotation=annotation,
@@ -60,6 +70,7 @@ class MWFaceOn(MWPlotBase):
             radius=radius,
             unit=unit,
             figsize=figsize,
+            map=map,
         )
         self.s = 20
         self.cmap = "viridis"
@@ -75,6 +86,9 @@ class MWFaceOn(MWPlotBase):
         self.title = None
         self.cbar_flag = False
         self.clim = None
+
+        self.show_sun = show_sun
+        self.sun_position = sun_position
 
         # prepossessing procedure
         self.unit_english = self.unit.short_names[0]
@@ -193,7 +207,28 @@ class MWFaceOn(MWPlotBase):
                 )
                 ax.set_xlim(self._ext[0], self._ext[1])
                 ax.set_ylim(self._ext[2], self._ext[3])
+            
             self.fig, self.ax = fig, ax
+
+            if self.show_sun:
+                if self.sun_position == "right":
+                    sun_x = self.r0.to(self.unit).value
+                    sun_y = 0
+                else:  # bottom
+                    sun_x = 0
+                    sun_y = -self.r0.to(self.unit).value
+                self.ax.scatter(
+                    sun_x, sun_y,
+                    c='yellow', s=10, marker='o',
+                    edgecolors='none', linewidths=0.5,
+                    zorder=5, label='Sun'
+                )
+                self.ax.legend(
+                    loc='upper right',
+                    facecolor='black',
+                    labelcolor='white',
+                    fontsize=10
+                )
 
             self._built = True
 
@@ -256,6 +291,7 @@ class MWFaceOn(MWPlotBase):
         arrowprops=dict(facecolor="black", width=1.0, headwidth=6.0, headlength=6.0),
         fontsize=15,
         bbox=dict(pad=2),
+        text_offset=1.5,
         **kwargs,
     ):
         """
@@ -266,10 +302,10 @@ class MWFaceOn(MWPlotBase):
         if isinstance(position, apycoords.SkyCoord):
             position = self.skycoord_xy(position)
         position_wo_unit = self.xy_unit_check(position[0], position[1])
-        position_text = np.add(position_wo_unit, 1.5)
+        position_text = np.add(position_wo_unit, text_offset)
         if isinstance(text, list):
             for t, p, pou, pt in zip(text, position, position_wo_unit, position_text):
-                self.scatter(p[0], p[1])
+                
                 self.ax.annotate(
                     t,
                     xy=pou,
@@ -280,7 +316,7 @@ class MWFaceOn(MWPlotBase):
                     **kwargs,
                 )
         else:
-            self.scatter(position[0], position[1])
+            
             self.ax.annotate(
                 text,
                 xy=position_wo_unit,
@@ -327,7 +363,7 @@ class MWSkyMap(MWSkyMapBase):
         self,
         grayscale: bool = False,
         projection: str = "equirectangular",
-        background: str = "optical",
+        background: str = "gaia_edr3",
         center: Union[Tuple[float, float], str] = (0.0, 0.0) * u.deg,
         radius: tuple = (180.0, 90.0) * u.deg,
         grid: str = None,
@@ -516,8 +552,7 @@ class MWSkyMap(MWSkyMapBase):
             grid_style = "--"
 
             self._built = True
-            if self.projection != "equirectangular":
-                self.ax.set_xticklabels([])
+            
             if self.grid is True:
                 for i in [0, -15, 15, -30, 30, -45, 45, -60, 60, -75, 75]:
                     self.ax.plot(
@@ -541,9 +576,7 @@ class MWSkyMap(MWSkyMapBase):
                     )
             elif self.projection == "equirectangular":
                 pass
-            else:
-                # disable ticks if not galactic grid
-                self.ax.set_yticklabels([])
+
 
             epoch = "J2000"
 

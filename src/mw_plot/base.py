@@ -33,6 +33,11 @@ class MWImage:
 
     filename: str
     citation: str
+    source_url:    str   = ""
+    license:       str   = ""
+    img_size_px:   tuple = None    # (width, height) in pixels for face-on maps only
+    gc_pixel:      tuple = None    # pixel (col, row) of galactic centre for face-on maps only
+    kpc_per_pixel: float = None    # physical scale kpc/px, face-on maps only
 
     @property
     def img_path(self) -> pathlib.Path:
@@ -82,8 +87,11 @@ class MWPlotCommon(ABC):
                 filename="MW_bg_annotate.jpg",
                 citation="NASA/JPL-Caltech/R. Hurt (SSC/Caltech)",
             ),
-            "MW_edgeon_edr3_unannotate": MWImage(
-                filename="MW_edgeon_edr3_unannotate.jpg", citation="ESA/Gaia/DPAC"
+            "MW_gaia_edr3_fullsky": MWImage(
+                filename   = "eDR3_flux_cartesian_4000_2000_v1.png",
+                citation   = "ESA/Gaia/DPAC, Acknowledgement: A. Moitinho",
+                source_url = "https://www.esa.int/ESA_Multimedia/Images/2020/12/The_colour_of_the_sky_from_Gaia_s_Early_Data_Release_32",
+                license    = "CC BY-SA 3.0 IGO or ESA Standard Licence",
             ),
             "MW_fermi_gamma": MWImage(
                 filename="MW_fermi_gamma.jpg",
@@ -97,6 +105,15 @@ class MWPlotCommon(ABC):
                 filename="MW_farinfrared.jpg",
                 citation="WISE/NASA/JPL-Caltech/UCLA & IRAS/NASA",
             ),
+            "MW_gaia_faceon": MWImage(
+                filename      = "MW_Gaia_FaceOn.jpg",
+                citation      = "ESA/Gaia/DPAC, Stefan Payne-Wardenaar",
+                source_url    = "https://www.esa.int/ESA_Multimedia/Images/2025/01/The_best_Milky_Way_map_by_Gaia",
+                license       = "CC BY-SA 3.0 IGO",
+                img_size_px   = (5000, 5000),
+                gc_pixel      = (2500, 2500),
+                kpc_per_pixel = 40.0 / 5000,
+             ),
         }
 
     @abstractmethod
@@ -360,18 +377,17 @@ class MWPlotBase(MWPlotCommon):
         grayscale: bool = False,
         annotation: bool = False,
         angle: int = 90,
-        r0: u.Quantity = 8.125 * u.kpc,
+        r0: u.Quantity = 8.275 * u.kpc,     #https://www.aanda.org/articles/aa/full_html/2021/03/aa40208-20/aa40208-20.html#top_full, equation 38
         coord: str = "galactic",
         center: tuple = (0.0, 0.0),
         radius: u.Quantity = 20.0 * u.kpc,
         unit: u.Unit = u.kpc,
         figsize: tuple = (5, 5),
+        map: str = "gaia"
     ):
         super().__init__()
         self.grayscale = grayscale
         self.annotation = annotation
-        if angle != 90:
-            raise NotImplementedError("Only 90 degrees is implemented")
         self.angle = -(angle - 90.0)
         self.r0 = self.unit_check(r0, unit)
         self.coord = coord
@@ -383,13 +399,21 @@ class MWPlotBase(MWPlotCommon):
         self.facecolor = (0, 0, 0) if not self.grayscale else (1, 1, 1)
 
         # properties of the images
-        self.img_pixels = 5600  # number of pixels in x and y axis
-        # light years per pixel resolution given
-        # 1078 is the number of pixels in the image from galactic center to the Sun
-        self.img_resolution = self.unit_check((self.r0 / 1078), unit)
+        self.map = map
+        if map == "gaia":
+            img = self._MW_IMAGES["MW_gaia_faceon"]
+            self.img_pixels     = img.img_size_px[0]
+            self.img_resolution = self.unit_check(img.kpc_per_pixel * u.kpc, unit)
+        elif map == "hurt":
+            self.img_pixels     = 5600
+            self.img_resolution = self.unit_check((self.r0 / 1078), unit)
+        else:
+            raise ValueError(f"Unknown map '{map}', choose 'hurt' or 'gaia'")
 
     def read_bg_img(self):
-        if self.annotation:
+        if self.map == "gaia":
+            self.img_obj = self._MW_IMAGES["MW_gaia_faceon"]
+        elif self.annotation:
             self.img_obj = self._MW_IMAGES["MW_bg_annotate"]
         else:
             self.img_obj = self._MW_IMAGES["MW_bg_unannotate"]
@@ -529,7 +553,7 @@ class MWSkyMapBase(MWPlotCommon):
         self,
         grayscale: bool = False,
         projection: str = "equirectangular",
-        background: str = "optical",
+        background: str = "gaia_edr3",
         center: Union[Tuple[float, float], str] = (0.0, 0.0),
         radius: tuple = (180.0, 90.0),
         figsize: tuple = (5, 5),
@@ -577,8 +601,8 @@ class MWSkyMapBase(MWPlotCommon):
     def read_bg_img(self):
         img_key = None
         need_copping = True
-        if self.wavlength == "optical":
-            img_key = "MW_edgeon_edr3_unannotate"
+        if self.wavlength == "gaia_edr3":
+            img_key = "MW_gaia_edr3_fullsky"
         elif self.wavlength == "gamma":
             img_key = "MW_fermi_gamma"
         elif self.wavlength == "infrared":
